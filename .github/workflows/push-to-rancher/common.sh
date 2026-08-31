@@ -71,20 +71,6 @@ require_rancher_dir() {
   fi
 }
 
-# Detect if tag is a stable release (no prerelease suffix)
-# Returns 0 if stable, 1 if prerelease
-is_stable_release() {
-  local tag="$1"
-  # Strip leading 'v' if present
-  tag="${tag#v}"
-  # Check if tag matches semver with prerelease (has dash after version numbers)
-  if echo "$tag" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then
-    return 1  # Has prerelease suffix
-  else
-    return 0  # Stable release
-  fi
-}
-
 # Validate that the SCC Operator image exists in required registries
 # All registries checked support anonymous read access via docker manifest inspect
 validate_image_exists() {
@@ -106,8 +92,9 @@ validate_image_exists() {
   registries+=("${PRIME_STG_REGISTRY}")
   registry_labels+=("Prime Staging")
 
-  # Validate Prime Production only for stable releases
-  if is_stable_release "$tag"; then
+  # Validate Prime Production only for stable releases (using existing check-semver script)
+  SEMVER_OUTPUT=$(bash "$SCC_DIR/.github/scripts/check-semver" "$tag")
+  if echo "$SEMVER_OUTPUT" | grep -q "HAS_PRERELEASE=false"; then
     registries+=("${PRIME_REGISTRY}")
     registry_labels+=("Prime Production")
     log "ℹ️  Stable release detected - will validate Prime Production registry"
